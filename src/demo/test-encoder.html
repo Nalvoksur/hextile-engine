@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Hextile RLE Optimizer</title>
+    <script src="https://unpkg.com/fflate"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #eee; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { background: #1e1e1e; padding: 30px; border-radius: 12px; width: 95%; max-width: 800px; border: 1px solid #333; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+        #drop-zone { border: 2px dashed #444; padding: 40px; text-align: center; cursor: pointer; border-radius: 8px; margin-bottom: 20px; transition: 0.3s; }
+        #drop-zone:hover { border-color: #007bff; background: #252525; }
+        .stats { display: flex; justify-content: space-between; margin-bottom: 20px; background: #2a2a2a; padding: 15px; border-radius: 8px; }
+        .stat-box { text-align: center; flex: 1; }
+        .stat-value { display: block; font-size: 22px; font-weight: bold; color: #00ff41; }
+        .stat-label { font-size: 11px; text-transform: uppercase; color: #aaa; }
+        pre { background: #000; padding: 15px; border-radius: 6px; overflow-y: auto; max-height: 200px; font-size: 11px; color: #00ff41; word-break: break-all; border: 1px solid #333; }
+        button { background: #007bff; color: white; border: none; padding: 15px; cursor: pointer; border-radius: 6px; font-weight: bold; width: 100%; font-size: 16px; transition: 0.2s; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Hextile RLE + Gzip</h1>
+        <div id="drop-zone">Перетащите PNG для ультра-сжатия</div>
+        <input type="file" id="file-input" accept="image/png" style="display: none;">
+        
+        <div class="stats">
+            <div class="stat-box">
+                <span class="stat-label">Original PNG</span>
+                <span id="s-png" class="stat-value">-</span>
+            </div>
+            <div class="stat-box" style="border-left: 1px solid #444; border-right: 1px solid #444;">
+                <span class="stat-label">HTL RLE Text</span>
+                <span id="s-htl" class="stat-value">-</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">Gzipped HTL</span>
+                <span id="s-gz" class="stat-value">-</span>
+            </div>
+        </div>
+
+        <button id="dl-btn" style="display:none;">Скачать .htl.gz</button>
+
+        <h3>Структура (RLE дельты):</h3>
+        <pre id="output">Ожидание файла...</pre>
+    </div>
+
+    <script>
+        // Коэффициент квантования (чем выше, тем меньше файл, но хуже цвета)
+        const QUANT = 12;
+
+        function toHex(r, g, b) {
+            const q = (c) => Math.round(c / QUANT) * QUANT;
+            const h = (c) => q(c).toString(16).padStart(2, '0');
+            let hex = h(r) + h(g) + h(b);
+            if (hex[0] === hex[1] && hex[2] === hex[3] && hex[4] === hex[5]) hex = hex[0] + hex[2] + hex[4];
+            return hex.toUpperCase();
+        }
+
+        // --- НОВЫЙ МЕТОД СЖАТИЯ С RLE ПОДДЕРЖКОЙ ---
+        function compressIndices(indices) {
+            if (indices.length === 0) return "";
+            indices.sort((a, b) => a - b);
+
+            let result = indices[0].toString(36);
+            let i = 1;
+
+            while (i < indices.length) {
+                let diff = indices[i] - indices[i - 1];
+                let count = 1;
+
+                // Считаем повторения текущей разницы
+                while (i + count < indices.length && (indices[i + count] - indices[i + count - 1]) === diff) {
+                    count++;
+                }
+
+                const marker = (diff < 36) ? "." : "_";
+                const diffStr = diff.toString(36);
+
+                if (count > 1) {
+                    // Формат: .дельта*повторы (например .1*g)
+                    result += marker + diffStr + "*" + count.toString(36);
+                    i += count;
+                } else {
+                    result += marker + diffStr;
+                    i++;
+                }
+            }
+            return result;
+        }
+
+        const fInput = document.getElementById('file-input');
+        const dZone = document.getElementById('drop-zone');
+        const dlBtn = document.getElementById('dl-btn');
+        let compressedData = null;
+        let outName = "file.htl.gz";
+
+        dZone.onclick = () => fInput.click();
+        fInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            outName = file.name.replace(".png", ".htl.gz");
+            
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width; canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    
+                    const pixels = ctx.getImageData(0, 0, img.width, img.height).data;
+                    const map = new Map();
+                    let pIdx = 1;
+
+                    for (let i = 0; i < pixels.length; i += 4) {
+                        if (pixels[i+3] < 50) { pIdx++; continue; }
+                        const hex = toHex(pixels[i], pixels[i+1], pixels[i+2]);
+                        if (!map.has(hex)) map.set(hex, []);
+                        map.get(hex).push(pIdx++);
+                    }
+
+                    const palette = Array.from(map.keys());
+                    let htl = "PALETTE|" + palette.join(",") + "\n";
+                    palette.forEach((clr, idx) => {
+                        htl += idx.toString(36) + ":" + compressIndices(map.get(clr)) + "\n";
+                    });
+
+                    // Архивация
+                    const bytes = new TextEncoder().encode(htl);
+                    compressedData = fflate.gzipSync(bytes, { level: 9 });
+
+                    // Статистика
+                    document.getElementById('s-png').textContent = (file.size / 1024).toFixed(1) + " KB";
+                    document.getElementById('s-htl').textContent = (bytes.length / 1024).toFixed(1) + " KB";
+                    document.getElementById('s-gz').textContent = (compressedData.length / 1024).toFixed(1) + " KB";
+                    document.getElementById('output').textContent = htl.substring(0, 1500) + "...";
+                    dlBtn.style.display = "block";
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+
+        dlBtn.onclick = () => {
+            const blob = new Blob([compressedData], { type: 'application/gzip' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = outName; a.click();
+        };
+    </script>
+</body>
+</html>

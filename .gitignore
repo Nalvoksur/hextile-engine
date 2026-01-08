@@ -1,0 +1,34 @@
+# Скомпилированный код
+dist/
+out/
+*.tsbuildinfo
+
+# Зависимости
+node_modules/
+jspm_packages/
+
+# Логи и временные файлы
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# Тестовые и огромные исходные ассеты
+# (Лучше не хранить 4K PNG в Git, если их много)
+src/tests/*.png
+src/tests/*.jpg
+
+# Результаты работы энкодера
+*.htl
+*.htl.gz
+
+# Настройки IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Операционная система
+.DS_Store
+Thumbs.db

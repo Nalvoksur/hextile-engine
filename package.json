@@ -1,0 +1,14 @@
+{
+  "name": "hextile-engine",
+  "version": "0.1.0",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "@types/pngjs": "^6.0.5",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "fs": "^0.0.1-security",
+    "pngjs": "^7.0.0"
+  }
+}
