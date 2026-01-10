@@ -8,13 +8,15 @@ Testing on a 4K Satellite Terrain Texture (3840x2160):
 - **Gzipped Hextile:** 19.4 MB
 - **Compression Ratio:** **~1.7x smaller than PNG**
 
-![4K Benchmark Result](./docs/resualt.png)
+![4K Benchmark Result](./docs/assets/benchmark_4k.png)
 
 ## ✨ Features
 - **RLE-Delta Encoding:** Specialized for patterns and large areas of similar colors.
 - **Base36 Serialization:** Ultra-short character representation for coordinates and indices.
 - **Engine-Ready:** Designed to be parsed directly into a Collision Map or Logic Grid.
 - **Quantization:** Built-in color optimization to reduce noise.
+- **Progressive Rendering:** Integrated visualizer to see image reconstruction layer-by-layer.
+- **Real-time Studio:** Interactive GUI with live quantization (1-64) and size estimation.
 
 ---
 

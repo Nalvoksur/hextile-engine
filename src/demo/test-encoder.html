@@ -2,208 +2,269 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Hextile Engine: Encoder & Decoder</title>
+    <title>Hextile Engine Studio v1.1</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fflate/umd/index.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #121212; color: #eee; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .container { background: #1e1e1e; padding: 30px; border-radius: 12px; width: 95%; max-width: 900px; border: 1px solid #333; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
-        #drop-zone { border: 2px dashed #444; padding: 40px; text-align: center; cursor: pointer; border-radius: 8px; margin-bottom: 20px; transition: 0.3s; }
-        #drop-zone:hover { border-color: #007bff; background: #252525; }
-        .stats { display: flex; justify-content: space-between; margin-bottom: 20px; background: #2a2a2a; padding: 15px; border-radius: 8px; }
-        .stat-box { text-align: center; flex: 1; }
-        .stat-value { display: block; font-size: 22px; font-weight: bold; color: #00ff41; }
-        .stat-label { font-size: 11px; text-transform: uppercase; color: #aaa; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        .container { background: #181818; padding: 25px; border-radius: 16px; width: 95%; max-width: 1100px; border: 1px solid #282828; }
         
-        .preview-area { display: flex; gap: 20px; margin-top: 20px; justify-content: center; }
-        canvas { background: #000; border: 1px solid #444; max-width: 45%; height: auto; border-radius: 4px; }
+        .grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px; }
+        .panel { background: #222; padding: 20px; border-radius: 12px; border: 1px solid #333; }
         
-        pre { background: #000; padding: 15px; border-radius: 6px; overflow-y: auto; max-height: 150px; font-size: 11px; color: #00ff41; word-break: break-all; border: 1px solid #333; }
-        .btn-group { display: flex; gap: 10px; margin-top: 10px; }
-        button { background: #007bff; color: white; border: none; padding: 15px; cursor: pointer; border-radius: 6px; font-weight: bold; flex: 1; font-size: 16px; transition: 0.2s; }
-        button:hover { background: #0056b3; }
-        button.secondary { background: #28a745; }
-        button.secondary:hover { background: #218838; }
+        #drop-zone, #drop-zone-htl { border: 2px dashed #444; padding: 20px; text-align: center; cursor: pointer; border-radius: 8px; margin-bottom: 15px; transition: 0.2s; }
+        #drop-zone:hover, #drop-zone-htl:hover { border-color: #007bff; background: #2a2a2a; }
+        
+        .controls { display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px; }
+        .preview-box { position: relative; background: #000; border-radius: 6px; overflow: hidden; border: 1px solid #111; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
+        canvas { max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+
+        .stats { display: flex; gap: 10px; margin-top: 10px; }
+        .stat-box { flex: 1; background: #111; padding: 8px; border-radius: 6px; text-align: center; font-size: 12px; }
+        .stat-value { display: block; color: #00ff41; font-weight: bold; }
+
+        button { width: 100%; padding: 12px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .btn-blue { background: #007bff; color: white; }
+        .btn-green { background: #28a745; color: white; }
+        
+        h2 { font-size: 16px; margin: 0 0 15px 0; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+        pre { background: #000; padding: 10px; font-size: 10px; color: #666; overflow: hidden; border-radius: 4px; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>Hextile Engine: Core v1.0</h1>
-        
-        <div id="drop-zone">Перетащите PNG для теста цикла (Encode -> Decode)</div>
-        <input type="file" id="file-input" accept="image/png" style="display: none;">
-        
-        <div class="stats">
-            <div class="stat-box">
-                <span class="stat-label">Original PNG</span>
-                <span id="s-png" class="stat-value">-</span>
-            </div>
-            <div class="stat-box" style="border-left: 1px solid #444; border-right: 1px solid #444;">
-                <span class="stat-label">Gzipped HTL</span>
-                <span id="s-gz" class="stat-value">-</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-label">Decode Time</span>
-                <span id="s-time" class="stat-value">-</span>
-            </div>
-        </div>
+<div class="container">
+    <h1>🕹️ Hextile Studio v1.1</h1>
 
-        <div class="btn-group">
-            <button id="dl-btn" style="display:none;">Скачать .htl.gz</button>
-            <button id="view-btn" class="secondary" style="display:none;">Запустить Decoder 🚀</button>
-        </div>
+    <div class="grid-layout">
+        <div class="panel">
+            <h2>Сжатие (PNG → HTL)</h2>
+            <div id="drop-zone">Кидай PNG для сжатия</div>
+            <input type="file" id="file-input" accept="image/png" style="display: none;">
+            
+            <div class="controls">
+                <label style="font-size: 12px;">Квантование: <b id="q-val">12</b></label>
+                <input type="range" id="q-slider" min="1" max="64" value="12">
+            </div>
 
-        <div class="preview-area">
-            <div>
-                <div class="stat-label">Original Canvas</div>
+            <div class="preview-box">
                 <canvas id="orig-canvas"></canvas>
             </div>
-            <div>
-                <div class="stat-label">Decoded Hextile</div>
-                <canvas id="dest-canvas"></canvas>
+
+            <div class="stats">
+                <div class="stat-box">PNG <span id="s-png" class="stat-value">-</span></div>
+                <div class="stat-box">HTL.GZ <span id="s-gz" class="stat-value">-</span></div>
             </div>
+
+            <button id="dl-btn" class="btn-blue" style="display:none;">Сгенерировать и Скачать .htl.gz</button>
         </div>
 
-        <h3>Raw Data Preview:</h3>
-        <pre id="output">Ожидание файла...</pre>
+        <div class="panel">
+            <h2>Распаковка (HTL → Canvas)</h2>
+            <div id="drop-zone-htl">Кидай .htl.gz для теста</div>
+            <input type="file" id="file-input-htl" accept=".gz" style="display: none;">
+
+            <div class="controls">
+                <select id="render-mode" style="background:#333; color:white; padding:8px; border:none; border-radius:4px;">
+                    <option value="instant">Мгновенная отрисовка</option>
+                    <option value="progressive">Прогрессивный режим</option>
+                </select>
+            </div>
+
+            <div class="preview-box">
+                <canvas id="dest-canvas"></canvas>
+            </div>
+
+            <div class="stats">
+                <div class="stat-box">Статус <span id="d-status" class="stat-value">Ожидание</span></div>
+                <div class="stat-box">Время <span id="d-time" class="stat-value">-</span></div>
+            </div>
+            
+            <pre id="output">Бинарный поток не загружен</pre>
+        </div>
     </div>
+</div>
 
-    <script>
-        const QUANT = 12;
-        const fInput = document.getElementById('file-input');
-        const dZone = document.getElementById('drop-zone');
-        const dlBtn = document.getElementById('dl-btn');
-        const viewBtn = document.getElementById('view-btn');
-        const outPre = document.getElementById('output');
-        
-        let lastHtlData = "";
-        let lastCompressed = null;
-        let outName = "file.htl.gz";
-        let imgW = 0, imgH = 0;
+<script>
+    let currentQuant = 12;
+    let sourceImg = null;
+    let debounceTimer;
+    let lastBinaryData = null;
 
-        // --- ENCODER LOGIC ---
-        function toHex(r, g, b) {
-            const q = (c) => Math.round(c / QUANT) * QUANT;
-            const h = (c) => q(c).toString(16).padStart(2, '0');
-            let hex = h(r) + h(g) + h(b);
-            if (hex[0] === hex[1] && hex[2] === hex[3] && hex[4] === hex[5]) hex = hex[0] + hex[2] + hex[4];
-            return hex.toUpperCase();
-        }
+    // --- СЛАЙДЕР ---
+    document.getElementById('q-slider').oninput = (e) => {
+        currentQuant = parseInt(e.target.value);
+        document.getElementById('q-val').innerText = currentQuant;
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => { if(sourceImg) updatePreview(); }, 150);
+    };
 
-        function compressIndices(indices) {
-            if (indices.length === 0) return "";
-            indices.sort((a, b) => a - b);
-            let result = indices[0].toString(36);
-            for(let i=1; i<indices.length; i++) {
-                result += "," + (indices[i] - indices[i-1]).toString(36);
-            }
-            return result;
-        }
+    // --- ФУНКЦИИ СЖАТИЯ ---
+    function toHex(r, g, b) {
+        const q = (c) => Math.round(c / currentQuant) * currentQuant;
+        const h = (c) => Math.min(255, Math.max(0, q(c))).toString(16).padStart(2, '0');
+        return (h(r) + h(g) + h(b)).toUpperCase();
+    }
 
-        dZone.onclick = () => fInput.click();
-        
-        fInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            outName = file.name.replace(".png", ".htl.gz");
-            
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                const img = new Image();
-                img.onload = () => {
-                    imgW = img.width; imgH = img.height;
-                    const canvas = document.getElementById('orig-canvas');
-                    canvas.width = imgW; canvas.height = imgH;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    
-                    const pixels = ctx.getImageData(0, 0, imgW, imgH).data;
-                    const map = new Map();
-                    let pIdx = 0;
+    function compressIndices(indices) {
+        if (!indices.length) return "";
+        indices.sort((a, b) => a - b);
+        let res = indices[0].toString(36);
+        for(let i=1; i<indices.length; i++) res += "," + (indices[i]-indices[i-1]).toString(36);
+        return res;
+    }
 
-                    for (let i = 0; i < pixels.length; i += 4) {
-                        const hex = toHex(pixels[i], pixels[i+1], pixels[i+2]);
-                        if (!map.has(hex)) map.set(hex, []);
-                        map.get(hex).push(pIdx++);
-                    }
+    // --- ENCODER LOGIC ---
+    const dZone = document.getElementById('drop-zone');
+    dZone.onclick = () => document.getElementById('file-input').click();
+    document.getElementById('file-input').onchange = (e) => loadSource(e.target.files[0]);
 
-                    const palette = Array.from(map.keys());
-                    // Формируем заголовок как в нашем будущем Parser.ts
-                    lastHtlData = `INFO|${imgW}x${imgH}\nPALETTE|${palette.join(",")}\nDATA|`;
-                    
-                    palette.forEach((clr, idx) => {
-                        lastHtlData += idx.toString(36) + ":" + compressIndices(map.get(clr)) + "|";
-                    });
-
-                    const bytes = new TextEncoder().encode(lastHtlData);
-                    lastCompressed = fflate.gzipSync(bytes, { level: 9 });
-
-                    document.getElementById('s-png').textContent = (file.size / (1024*1024)).toFixed(2) + " MB";
-                    document.getElementById('s-gz').textContent = (lastCompressed.length / (1024*1024)).toFixed(2) + " MB";
-                    outPre.textContent = lastHtlData.substring(0, 1000) + "...";
-                    dlBtn.style.display = "block";
-                    viewBtn.style.display = "block";
-                };
-                img.src = ev.target.result;
+    function loadSource(file) {
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => { 
+                sourceImg = img; 
+                document.getElementById('s-png').innerText = (file.size/1024).toFixed(1) + " KB";
+                updatePreview(); 
             };
-            reader.readAsDataURL(file);
+            img.src = e.target.result;
+        }
+        reader.readAsDataURL(file);
+    }
+
+    function updatePreview() {
+        const canvas = document.getElementById('orig-canvas');
+        // Масштабируем для скорости
+        const scale = Math.min(1, 800 / Math.max(sourceImg.width, sourceImg.height));
+        canvas.width = sourceImg.width * scale;
+        canvas.height = sourceImg.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(sourceImg, 0, 0, canvas.width, canvas.height);
+        
+        // --- РАСЧЕТ ПРИБЛИЗИТЕЛЬНОГО ВЕСА ---
+        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const map = new Map();
+        for (let i = 0; i < pixels.length; i += 4) {
+            if (pixels[i+3] < 128) continue;
+            const hex = toHex(pixels[i], pixels[i+1], pixels[i+2]);
+            if (!map.has(hex)) map.set(hex, []);
+            map.get(hex).push(i/4);
+        }
+
+        const palette = Array.from(map.keys());
+        let htlPreview = `INFO|${canvas.width}x${canvas.height}\nPALETTE|${palette.join(",")}\nDATA|`;
+        
+        // Для скорости считаем только первые 50 цветов в превью
+        palette.slice(0, 50).forEach((clr, idx) => {
+            htlPreview += idx.toString(36) + ":" + compressIndices(map.get(clr)) + "|";
+        });
+
+        // Быстрое сжатие (level 1) только для оценки веса
+        const previewBytes = new TextEncoder().encode(htlPreview);
+        const compressedPreview = fflate.gzipSync(previewBytes, { level: 1 });
+        
+        // Корректируем вес (так как превью меньше оригинала, умножаем на коэффициент площади)
+        const areaRatio = (sourceImg.width * sourceImg.height) / (canvas.width * canvas.height);
+        const estimatedSize = compressedPreview.length * areaRatio;
+
+        document.getElementById('s-gz').innerText = "~" + (estimatedSize / 1024).toFixed(1) + " KB";
+        document.getElementById('dl-btn').style.display = "block";
+    }
+
+    // ГЕНЕРАЦИЯ ФАЙЛА (Честная, без лимитов)
+    document.getElementById('dl-btn').onclick = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = sourceImg.width; canvas.height = sourceImg.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(sourceImg, 0, 0);
+        const pixels = ctx.getImageData(0,0,canvas.width, canvas.height).data;
+        
+        const map = new Map();
+        for(let i=0; i<pixels.length; i+=4) {
+            if(pixels[i+3] < 128) continue;
+            const hex = toHex(pixels[i], pixels[i+1], pixels[i+2]);
+            if(!map.has(hex)) map.set(hex, []);
+            map.get(hex).push(i/4);
+        }
+
+        const palette = Array.from(map.keys());
+        let htl = `INFO|${canvas.width}x${canvas.height}\nPALETTE|${palette.join(",")}\nDATA|`;
+        palette.forEach((clr, idx) => {
+            htl += idx.toString(36) + ":" + compressIndices(map.get(clr)) + "|";
+        });
+
+        const compressed = fflate.gzipSync(new TextEncoder().encode(htl), { level: 9 });
+        const blob = new Blob([compressed], { type: 'application/gzip' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = "export.htl.gz";
+        a.click();
+        document.getElementById('s-gz').innerText = (compressed.length/1024).toFixed(1) + " KB";
+    };
+
+    // --- DECODER LOGIC ---
+    const dZoneHtl = document.getElementById('drop-zone-htl');
+    dZoneHtl.onclick = () => document.getElementById('file-input-htl').click();
+    document.getElementById('file-input-htl').onchange = (e) => loadHtl(e.target.files[0]);
+
+    function loadHtl(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            lastBinaryData = new Uint8Array(e.target.result);
+            document.getElementById('output').innerText = "Файл загружен: " + file.name;
+            runDecoder();
         };
+        reader.readAsArrayBuffer(file);
+    }
 
-        // --- DECODER LOGIC (DAY 2) ---
-        viewBtn.onclick = () => {
-            const start = performance.now();
-            
-            // 1. Unzip
-            const decompressed = pako.ungzip(lastCompressed, { to: 'string' });
-            
-            // 2. Parse (Мини-версия нашего Parser.ts)
-            const [header, data] = decompressed.split('DATA|');
+    async function runDecoder() {
+        if(!lastBinaryData) return;
+        const start = performance.now();
+        document.getElementById('d-status').innerText = "Распаковка...";
+
+        try {
+            const text = pako.ungzip(lastBinaryData, { to: 'string' });
+            const [header, data] = text.split('DATA|');
             const info = header.split('\n')[0].split('|')[1].split('x');
-            const w = parseInt(info[0]);
-            const h = parseInt(info[1]);
             const pal = header.split('\n')[1].split('|')[1].split(',');
-            
-            // 3. Reconstruct
-            const outCanvas = document.getElementById('dest-canvas');
-            outCanvas.width = w; outCanvas.height = h;
-            const outCtx = outCanvas.getContext('2d');
-            const imgData = outCtx.createImageData(w, h);
-            const pix = imgData.data;
+            const w = parseInt(info[0]), h = parseInt(info[1]);
 
-            const layers = data.split('|');
-            for(let l=0; l<layers.length; l++) {
-                if(!layers[l]) continue;
-                const [pIdx36, indicesRaw] = layers[l].split(':');
+            const canvas = document.getElementById('dest-canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            const imgData = ctx.createImageData(w, h);
+            const pix = imgData.data;
+            const mode = document.getElementById('render-mode').value;
+
+            const layers = data.split('|').filter(l => l.length > 0);
+            for(let layer of layers) {
+                const [pIdx36, indicesRaw] = layer.split(':');
                 const color = pal[parseInt(pIdx36, 36)];
-                let fullHex = color;
-                if (color.length === 3) {
-                    fullHex = color[0] + color[0] + color[1] + color[1] + color[2] + color[2];
-                }
-                const r = parseInt(fullHex.slice(0, 2), 16);
-                const g = parseInt(fullHex.slice(2, 4), 16);
-                const b = parseInt(fullHex.slice(4, 6), 16);
+                const fullHex = color.length === 3 ? color[0]+color[0]+color[1]+color[1]+color[2]+color[2] : color;
+                const r = parseInt(fullHex.slice(0,2), 16), g = parseInt(fullHex.slice(2,4), 16), b = parseInt(fullHex.slice(4,6), 16);
                 
-                const diffs = indicesRaw.split(',');
                 let currentIdx = 0;
-                for(let d=0; d<diffs.length; d++) {
-                    currentIdx += parseInt(diffs[d], 36);
+                indicesRaw.split(',').forEach(d => {
+                    currentIdx += parseInt(d, 36);
                     const p = currentIdx * 4;
                     pix[p] = r; pix[p+1] = g; pix[p+2] = b; pix[p+3] = 255;
+                });
+
+                if(mode === 'progressive') {
+                    ctx.putImageData(imgData, 0, 0);
+                    await new Promise(r => setTimeout(r, 5));
                 }
             }
+            if(mode === 'instant') ctx.putImageData(imgData, 0, 0);
             
-            outCtx.putImageData(imgData, 0, 0);
-            const end = performance.now();
-            document.getElementById('s-time').textContent = Math.round(end - start) + " ms";
-        };
-
-        dlBtn.onclick = () => {
-            const blob = new Blob([lastCompressed], { type: 'application/gzip' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = outName; a.click();
-        };
-    </script>
+            document.getElementById('d-time').innerText = Math.round(performance.now() - start) + "ms";
+            document.getElementById('d-status').innerText = "Готово";
+        } catch(e) {
+            alert("Ошибка формата: " + e.message);
+        }
+    }
+</script>
 </body>
 </html>
